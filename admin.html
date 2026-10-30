@@ -1,0 +1,153 @@
+<!doctype html>
+<html lang="pt">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex">
+<title>Residências Lugar Instável · Equipa</title>
+<link rel="stylesheet" href="style.css">
+<script src="config.js"></script>
+</head>
+<body>
+<div class="wrap">
+  <header class="top">
+    <div class="org">Residências Lugar Instável · Equipa</div>
+    <h1>Aprovação de reservas</h1>
+    <p>Pedidos feitos na plataforma. Ao aprovar ou recusar, a pessoa recebe um e-mail automaticamente e o calendário é atualizado.</p>
+  </header>
+
+  <section class="step" id="loginBox">
+    <h2>Entrar</h2>
+    <form id="loginForm">
+      <label for="pw">Senha da equipa</label>
+      <input id="pw" type="password" autocomplete="current-password">
+      <div class="actions"><button class="btn" type="submit">Entrar</button></div>
+      <div id="loginMsg"></div>
+    </form>
+  </section>
+
+  <div id="panel" class="hidden">
+    <div class="tabs" role="tablist">
+      <button role="tab" id="tabPending" aria-selected="true">Pendentes <span id="nPending"></span></button>
+      <button role="tab" id="tabApproved" aria-selected="false">Aprovadas <span id="nApproved"></span></button>
+      <button class="linkbtn" id="reload" style="margin-left:auto">Atualizar</button>
+    </div>
+    <div id="panelMsg"></div>
+    <div id="list"></div>
+  </div>
+</div>
+
+<script>
+(function () {
+  'use strict';
+  var API = window.RESERVAS_API;
+  var pw = '';
+  var data = { pending: [], approved: [] };
+  var tab = 'pending';
+  var $ = function (id) { return document.getElementById(id); };
+
+  function msg(el, text, kind) { $(el).innerHTML = text ? '<div class="msg ' + (kind || 'err') + '"></div>' : ''; if (text) $(el).firstChild.textContent = text; }
+  function api(body) {
+    body.password = pw;
+    return fetch(API, { method: 'POST', headers: { 'Content-Type': 'text/plain;charset=utf-8' }, body: JSON.stringify(body) })
+      .then(function (r) { return r.json(); });
+  }
+  function el(tag, cls, text) { var e = document.createElement(tag); if (cls) e.className = cls; if (text != null) e.textContent = text; return e; }
+
+  function load() {
+    msg('panelMsg', 'A carregar…', 'info');
+    return api({ action: 'adminList' }).then(function (res) {
+      if (!res.ok) throw new Error(res.error);
+      data = res; msg('panelMsg', ''); render(); return true;
+    });
+  }
+
+  function render() {
+    $('nPending').textContent = '(' + data.pending.length + ')';
+    $('nApproved').textContent = '(' + data.approved.length + ')';
+    $('tabPending').setAttribute('aria-selected', String(tab === 'pending'));
+    $('tabApproved').setAttribute('aria-selected', String(tab === 'approved'));
+    var items = data[tab], list = $('list');
+    list.innerHTML = '';
+    if (!items.length) { list.appendChild(el('p', 'empty', tab === 'pending' ? 'Não há pedidos pendentes.' : 'Não há reservas aprovadas futuras.')); return; }
+    items.forEach(function (r) { list.appendChild(card(r)); });
+  }
+
+  function card(r) {
+    var c = el('div', 'req-card');
+    var h = el('h3', null, r.name);
+    var tg = el('span', 'tag' + (r.status === 'aprovado' ? ' okt' : ''), r.status === 'aprovado' ? 'aprovado' : 'pendente'); h.appendChild(tg);
+    c.appendChild(h);
+    var meta = el('div', 'meta');
+    meta.appendChild(document.createTextNode(r.email + ' · ' + r.phone + ' · ' + r.slots.length + (r.slots.length === 1 ? ' dia' : ' dias')));
+    if (r.created) meta.appendChild(document.createTextNode(' · pedido a ' + new Date(r.created).toLocaleString('pt-PT', { dateStyle: 'short', timeStyle: 'short' })));
+    c.appendChild(meta);
+    var team = el('div', 'team'); team.appendChild(el('b', null, 'Equipa: ')); team.appendChild(document.createTextNode(r.team)); c.appendChild(team);
+    if (r.notes) { var n = el('div', 'team'); n.appendChild(el('b', null, 'Observações: ')); n.appendChild(document.createTextNode(r.notes)); c.appendChild(n); }
+    var ul = el('ul'), anyConflict = false;
+    r.slots.forEach(function (s) {
+      var li = el('li', null, s.label + ', ' + s.start + '–' + s.end);
+      if (s.full) {
+        anyConflict = true;
+        li.appendChild(el('span', 'warn', '  ⚠ sem estúdio livre — já ocupado por: ' + s.overlaps.join('; ')));
+      } else if (s.overlaps.length) {
+        li.appendChild(el('span', 'meta', '  (partilha horário com: ' + s.overlaps.join('; ') + ')'));
+      }
+      ul.appendChild(li);
+    });
+    c.appendChild(ul);
+    var act = el('div', 'actions'), m = el('div');
+    if (r.status === 'pendente') {
+      var ok = el('button', 'btn ok small', 'Aprovar'), no = el('button', 'btn ghost small', 'Recusar');
+      ok.onclick = function () {
+        if (anyConflict && !confirm('Em pelo menos um destes horários os dois estúdios já estão ocupados. Aprovar mesmo assim?')) return;
+        act_(r, 'approve', null, [ok, no], m);
+      };
+      no.onclick = function () {
+        var reason = prompt('Motivo da recusa (opcional, vai no e-mail para a pessoa):', '');
+        if (reason === null) return;
+        act_(r, 'reject', reason, [ok, no], m);
+      };
+      act.appendChild(ok); act.appendChild(no);
+    } else {
+      var cancel = el('button', 'btn ghost small', 'Cancelar reserva');
+      cancel.onclick = function () {
+        var reason = prompt('Cancelar esta reserva? A pessoa recebe um e-mail.\nMotivo (opcional):', '');
+        if (reason === null) return;
+        act_(r, 'reject', reason, [cancel], m);
+      };
+      act.appendChild(cancel);
+    }
+    c.appendChild(act); c.appendChild(m);
+    return c;
+  }
+
+  function act_(r, action, reason, btns, m) {
+    btns.forEach(function (b) { b.disabled = true; });
+    api({ action: action, requestId: r.requestId, reason: reason || '' }).then(function (res) {
+      if (!res.ok) throw new Error(res.error);
+      return load();
+    }).catch(function (e) {
+      btns.forEach(function (b) { b.disabled = false; });
+      m.innerHTML = ''; var d = el('div', 'msg err', e.message || 'Erro.'); m.appendChild(d);
+    });
+  }
+
+  $('loginForm').onsubmit = function (ev) {
+    ev.preventDefault();
+    pw = $('pw').value;
+    msg('loginMsg', '');
+    load().then(function () {
+      try { sessionStorage.setItem('reservasPw', pw); } catch (e) {}
+      $('loginBox').classList.add('hidden'); $('panel').classList.remove('hidden');
+    }).catch(function (e) { msg('panelMsg', ''); msg('loginMsg', e.message || 'Não foi possível entrar.'); });
+  };
+  $('tabPending').onclick = function () { tab = 'pending'; render(); };
+  $('tabApproved').onclick = function () { tab = 'approved'; render(); };
+  $('reload').onclick = function () { load().catch(function (e) { msg('panelMsg', e.message); }); };
+
+  try { var saved = sessionStorage.getItem('reservasPw'); if (saved) { $('pw').value = saved; $('loginForm').requestSubmit(); } } catch (e) {}
+})();
+</script>
+</body>
+</html>

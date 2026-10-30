@@ -1,0 +1,362 @@
+<!doctype html>
+<html lang="pt">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Residências Lugar Instável · Reserva de estúdio</title>
+<link rel="stylesheet" href="style.css">
+<script src="config.js"></script>
+</head>
+<body>
+<div class="wrap">
+  <header class="top">
+    <div class="org">Instável – Centro Coreográfico</div>
+    <h1>Residências Lugar Instável</h1>
+    <p class="sub">Reserva de estúdio</p>
+    <p>Escolha os dias e os horários pretendidos. O pedido fica pendente até ser aprovado pela nossa equipa, e recebe a confirmação por e-mail.</p>
+    <ul class="rules" id="rules"></ul>
+  </header>
+
+  <!-- Cancelamento por link -->
+  <section class="step hidden" id="cancelBox">
+    <h2>Cancelar pedido de reserva</h2>
+    <p>Confirma que pretende cancelar este pedido ou reserva? Todos os dias associados ficam livres.</p>
+    <div class="actions">
+      <button class="btn danger" id="cancelBtn">Confirmar cancelamento</button>
+      <a href="./" class="linkbtn">Voltar</a>
+    </div>
+    <div id="cancelMsg"></div>
+  </section>
+
+  <div id="bookingFlow">
+    <section class="step">
+      <h2><span class="n">1</span>Dias</h2>
+      <p class="hint" id="calHint">A carregar a disponibilidade…</p>
+      <div class="cal-head">
+        <button class="iconbtn" id="prevM" aria-label="Mês anterior">‹</button>
+        <div class="month" id="monthLabel"></div>
+        <button class="iconbtn" id="nextM" aria-label="Mês seguinte">›</button>
+      </div>
+      <div class="grid" id="grid"></div>
+      <div class="legend">
+        <span><i style="background:var(--free)"></i>Livre</span>
+        <span><i style="background:var(--partial)"></i>Parcialmente disponível</span>
+        <span><i style="background:var(--full)"></i>Sem disponibilidade</span>
+        <span><i style="background:var(--selected)"></i>Escolhido</span>
+      </div>
+      <div class="counter" id="counter"></div>
+      <div id="calMsg"></div>
+    </section>
+
+    <section class="step">
+      <h2><span class="n">2</span>Horários</h2>
+      <p class="hint" id="timeHint"></p>
+      <div class="sel-list" id="selList"><p class="empty">Ainda não escolheu nenhum dia.</p></div>
+      <div class="actions hidden" id="copyWrap"><button class="linkbtn" id="copyTimes">Aplicar o horário do primeiro dia a todos os dias</button></div>
+    </section>
+
+    <section class="step">
+      <h2><span class="n">3</span>Os seus dados</h2>
+      <form id="form" novalidate>
+        <div class="fields">
+          <div><label for="name">Nome <span class="req">*</span></label><input id="name" autocomplete="name" required maxlength="120"></div>
+          <div><label for="email">E-mail <span class="req">*</span></label><input id="email" type="email" autocomplete="email" required maxlength="160"></div>
+          <div><label for="phone">Contacto telefónico <span class="req">*</span></label><input id="phone" type="tel" autocomplete="tel" required maxlength="40"></div>
+          <div class="full"><label for="team">Equipa que estará presente <span class="req">*</span></label><textarea id="team" required maxlength="1000" placeholder="Nomes das pessoas que vão estar no estúdio"></textarea></div>
+          <div class="full"><label for="notes">Observações</label><textarea id="notes" maxlength="1000"></textarea></div>
+        </div>
+        <div class="actions">
+          <button class="btn" type="submit" id="submitBtn">Enviar pedido de reserva</button>
+        </div>
+        <div id="formMsg"></div>
+      </form>
+    </section>
+  </div>
+
+  <section class="step done hidden" id="doneBox">
+    <h2>Pedido enviado</h2>
+    <p>Obrigado! O seu pedido ficou <b>pendente de aprovação</b>. Enviámos um resumo para <b id="doneEmail"></b>. Quando a equipa aprovar, recebe um novo e-mail de confirmação.</p>
+    <div class="actions" style="justify-content:center"><a class="btn ghost" href="./">Fazer outro pedido</a></div>
+  </section>
+</div>
+
+<script>
+(function () {
+  'use strict';
+  var API = window.RESERVAS_API;
+  var WD = ['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb'];
+  var WDL = ['domingo', 'segunda', 'terça', 'quarta', 'quinta', 'sexta', 'sábado'];
+  var MONTHS = ['janeiro', 'fevereiro', 'março', 'abril', 'maio', 'junho', 'julho', 'agosto', 'setembro', 'outubro', 'novembro', 'dezembro'];
+
+  var cfg = null;            // configuração vinda do servidor
+  var view = null;           // primeiro dia do mês visível
+  var avail = {};            // 'AAAA-MM-DD' -> [[ini,fim], ...] (um intervalo por evento no calendário)
+  var loadedMonths = {};     // 'AAAA-MM' -> true / promessa
+  var selected = {};         // 'AAAA-MM-DD' -> { start: min, end: min }
+
+  var $ = function (id) { return document.getElementById(id); };
+  function pad(n) { return (n < 10 ? '0' : '') + n; }
+  function key(d) { return d.getFullYear() + '-' + pad(d.getMonth() + 1) + '-' + pad(d.getDate()); }
+  function fromKey(k) { var p = k.split('-'); return new Date(+p[0], +p[1] - 1, +p[2]); }
+  function hhmm(m) { return pad(Math.floor(m / 60)) + ':' + pad(m % 60); }
+  function today() { var n = new Date(); return new Date(n.getFullYear(), n.getMonth(), n.getDate()); }
+  function human(k) { var d = fromKey(k); return WDL[d.getDay()] + ', ' + d.getDate() + ' ' + MONTHS[d.getMonth()].slice(0, 3); }
+  function msg(el, text, kind) { $(el).innerHTML = text ? '<div class="msg ' + (kind || 'err') + '"></div>' : ''; if (text) $(el).firstChild.textContent = text; }
+
+  function apiGet(params) {
+    return fetch(API + '?' + new URLSearchParams(params)).then(function (r) { return r.json(); });
+  }
+  function apiPost(body) {
+    return fetch(API, { method: 'POST', headers: { 'Content-Type': 'text/plain;charset=utf-8' }, body: JSON.stringify(body) })
+      .then(function (r) { return r.json(); });
+  }
+
+  // ---------- disponibilidade ----------
+  function busyFor(k) { return avail[k] || null; }
+  function nowMinutesIf(k) {
+    if (k !== key(today())) return -1;
+    var n = new Date(); return n.getHours() * 60 + n.getMinutes();
+  }
+  // "Ocupado" = já há tantos eventos em simultâneo como estúdios
+  function isBusy(busy, a, b) {
+    var n = 0;
+    for (var i = 0; i < busy.length; i++) if (busy[i][0] < b && busy[i][1] > a) n++;
+    return n >= cfg.capacity;
+  }
+  function startOptions(k) {
+    var busy = busyFor(k); if (!busy) return [];
+    var out = [], step = cfg.stepMinutes, now = nowMinutesIf(k);
+    for (var t = cfg.openHour * 60; t + step <= cfg.closeHour * 60; t += step) {
+      if (t <= now) continue;
+      if (!isBusy(busy, t, t + step)) out.push(t);
+    }
+    return out;
+  }
+  function endOptions(k, start) {
+    var busy = busyFor(k) || [], out = [], step = cfg.stepMinutes;
+    var max = Math.min(cfg.closeHour * 60, start + cfg.maxHoursPerDay * 60);
+    for (var t = start + step; t <= max; t += step) {
+      if (isBusy(busy, t - step, t)) break;
+      out.push(t);
+    }
+    return out;
+  }
+  function dayStatus(k) {
+    var d = fromKey(k);
+    if (d < today() || d > limitDate()) return 'off';
+    if (!busyFor(k)) return 'loading';
+    var free = startOptions(k).length;
+    var total = (cfg.closeHour - cfg.openHour) * 60 / cfg.stepMinutes;
+    if (!free) return 'full';
+    return free === total ? 'free' : 'partial';
+  }
+  function limitDate() { var t = today(); return new Date(t.getFullYear(), t.getMonth() + cfg.maxMonthsAhead, t.getDate()); }
+
+  function loadMonth(d) {
+    var mk = d.getFullYear() + '-' + pad(d.getMonth() + 1);
+    if (loadedMonths[mk]) return loadedMonths[mk];
+    var first = new Date(d.getFullYear(), d.getMonth(), 1);
+    var last = new Date(d.getFullYear(), d.getMonth() + 1, 0);
+    var p = apiGet({ action: 'availability', from: key(first), to: key(last) }).then(function (res) {
+      if (!res.ok) throw new Error(res.error);
+      Object.keys(res.days).forEach(function (k) { avail[k] = res.days[k]; });
+    }).catch(function (e) {
+      delete loadedMonths[mk];
+      msg('calMsg', 'Não foi possível carregar a disponibilidade. ' + (e.message || 'Verifique a ligação e atualize a página.'));
+    });
+    loadedMonths[mk] = p;
+    return p;
+  }
+  function refreshMonths() {
+    // volta a carregar os meses dos dias escolhidos e o mês visível (depois de um conflito)
+    avail = {}; loadedMonths = {};
+    var months = {};
+    months[key(view).slice(0, 7)] = view;
+    Object.keys(selected).forEach(function (k) { months[k.slice(0, 7)] = fromKey(k); });
+    return Promise.all(Object.keys(months).map(function (m) { return loadMonth(months[m]); }));
+  }
+
+  // ---------- desenho ----------
+  function renderCalendar() {
+    $('monthLabel').textContent = MONTHS[view.getMonth()] + ' ' + view.getFullYear();
+    var t = today();
+    $('prevM').disabled = view.getFullYear() === t.getFullYear() && view.getMonth() === t.getMonth();
+    var lim = limitDate();
+    $('nextM').disabled = view.getFullYear() * 12 + view.getMonth() >= lim.getFullYear() * 12 + lim.getMonth();
+
+    var g = $('grid'); g.innerHTML = '';
+    [1, 2, 3, 4, 5, 6, 0].forEach(function (i) { var h = document.createElement('div'); h.className = 'dow'; h.textContent = WD[i]; g.appendChild(h); });
+    var first = new Date(view.getFullYear(), view.getMonth(), 1);
+    var offset = (first.getDay() + 6) % 7;
+    for (var i = 0; i < offset; i++) { var e = document.createElement('div'); g.appendChild(e); }
+    var days = new Date(view.getFullYear(), view.getMonth() + 1, 0).getDate();
+    for (var dd = 1; dd <= days; dd++) {
+      var k = key(new Date(view.getFullYear(), view.getMonth(), dd));
+      var b = document.createElement('button');
+      b.type = 'button';
+      var st = dayStatus(k);
+      b.className = 'day ' + (selected[k] ? 'sel' : st);
+      b.innerHTML = '<span>' + dd + '</span>' + (st === 'partial' && !selected[k] ? '<small>parcial</small>' : '');
+      b.disabled = !selected[k] && st !== 'free' && st !== 'partial';
+      b.setAttribute('aria-label', human(k) + (selected[k] ? ', escolhido' : st === 'full' ? ', sem disponibilidade' : ''));
+      b.onclick = (function (k) { return function () { toggleDay(k); }; })(k);
+      g.appendChild(b);
+    }
+    var n = Object.keys(selected).length;
+    $('counter').innerHTML = 'Dias escolhidos: <b>' + n + ' / ' + cfg.maxDaysPerRequest + '</b>';
+    $('calHint').textContent = 'Clique nos dias que pretende (até ' + cfg.maxDaysPerRequest + ' por pedido). Clique de novo para retirar.';
+  }
+
+  function toggleDay(k) {
+    msg('calMsg', '');
+    if (selected[k]) { delete selected[k]; render(); return; }
+    if (Object.keys(selected).length >= cfg.maxDaysPerRequest) {
+      msg('calMsg', 'Cada pedido pode ter no máximo ' + cfg.maxDaysPerRequest + ' dias. Pode fazer outro pedido depois deste.', 'info');
+      return;
+    }
+    var starts = startOptions(k); if (!starts.length) return;
+    // sugere o horário do primeiro dia escolhido, se couber; senão o primeiro período livre
+    var ref = firstSelected();
+    var s = starts[0], e;
+    if (ref && starts.indexOf(ref.start) !== -1 && endOptions(k, ref.start).indexOf(ref.end) !== -1) { s = ref.start; e = ref.end; }
+    else { var ends = endOptions(k, s); e = ends[ends.length - 1]; }
+    selected[k] = { start: s, end: e };
+    render();
+  }
+  function firstSelected() { var ks = Object.keys(selected).sort(); return ks.length ? selected[ks[0]] : null; }
+
+  function revalidateSelection() {
+    var dropped = [];
+    Object.keys(selected).forEach(function (k) {
+      var starts = startOptions(k);
+      if (!busyFor(k)) return; // ainda a carregar
+      var sel = selected[k];
+      if (!starts.length) { dropped.push(human(k)); delete selected[k]; return; }
+      if (starts.indexOf(sel.start) === -1) sel.start = starts[0];
+      var ends = endOptions(k, sel.start);
+      if (ends.indexOf(sel.end) === -1) sel.end = ends[ends.length - 1];
+    });
+    if (dropped.length) msg('calMsg', 'Entretanto deixou de haver disponibilidade, retirado: ' + dropped.join('; ') + '.', 'info');
+  }
+
+  // Períodos do dia sem nenhum estúdio livre
+  function busyText(k) {
+    var busy = busyFor(k) || [], step = cfg.stepMinutes, out = [], cur = null;
+    for (var t = cfg.openHour * 60; t < cfg.closeHour * 60; t += step) {
+      if (isBusy(busy, t, t + step)) { if (cur && cur[1] === t) cur[1] = t + step; else { cur = [t, t + step]; out.push(cur); } }
+    }
+    if (!out.length) return '';
+    return 'Sem estúdio livre: ' + out.map(function (x) { return hhmm(x[0]) + '–' + hhmm(x[1]); }).join(', ');
+  }
+
+  function renderSelection() {
+    var ks = Object.keys(selected).sort();
+    var list = $('selList'); list.innerHTML = '';
+    $('timeHint').textContent = cfg ? 'Entre as ' + cfg.openHour + 'h e as ' + cfg.closeHour + 'h, no máximo ' + cfg.maxHoursPerDay + ' horas por dia.' : '';
+    $('copyWrap').classList.toggle('hidden', ks.length < 2);
+    if (!ks.length) { list.innerHTML = '<p class="empty">Ainda não escolheu nenhum dia.</p>'; return; }
+    ks.forEach(function (k) {
+      var sel = selected[k];
+      var row = document.createElement('div'); row.className = 'sel-row';
+      var d = document.createElement('div'); d.className = 'date'; d.textContent = human(k);
+      var s = document.createElement('select'); s.setAttribute('aria-label', 'Início em ' + human(k));
+      startOptions(k).forEach(function (t) { s.add(new Option(hhmm(t), t, false, t === sel.start)); });
+      var e = document.createElement('select'); e.setAttribute('aria-label', 'Fim em ' + human(k));
+      endOptions(k, sel.start).forEach(function (t) { e.add(new Option(hhmm(t), t, false, t === sel.end)); });
+      var h = document.createElement('div'); h.className = 'hrs'; h.textContent = ((sel.end - sel.start) / 60).toString().replace('.', ',') + 'h';
+      var x = document.createElement('button'); x.type = 'button'; x.className = 'xbtn'; x.textContent = '×'; x.setAttribute('aria-label', 'Retirar ' + human(k));
+      s.onchange = function () {
+        sel.start = +s.value;
+        var ends = endOptions(k, sel.start);
+        if (ends.indexOf(sel.end) === -1) sel.end = ends[ends.length - 1];
+        renderSelection();
+      };
+      e.onchange = function () { sel.end = +e.value; renderSelection(); };
+      x.onclick = function () { delete selected[k]; render(); };
+      row.appendChild(d); row.appendChild(s); row.appendChild(e); row.appendChild(h); row.appendChild(x);
+      var bt = busyText(k);
+      if (bt) { var b = document.createElement('div'); b.className = 'busy'; b.textContent = bt; row.appendChild(b); }
+      list.appendChild(row);
+    });
+  }
+
+  function render() { renderCalendar(); renderSelection(); }
+
+  $('copyTimes').onclick = function () {
+    var ks = Object.keys(selected).sort(), ref = selected[ks[0]], bad = [];
+    ks.slice(1).forEach(function (k) {
+      if (startOptions(k).indexOf(ref.start) !== -1 && endOptions(k, ref.start).indexOf(ref.end) !== -1) {
+        selected[k].start = ref.start; selected[k].end = ref.end;
+      } else bad.push(human(k));
+    });
+    renderSelection();
+    msg('calMsg', bad.length ? 'Não foi possível aplicar o mesmo horário em: ' + bad.join('; ') + ' (já há ocupação nesse período).' : '', 'info');
+  };
+
+  $('prevM').onclick = function () { view = new Date(view.getFullYear(), view.getMonth() - 1, 1); render(); loadMonth(view).then(render); };
+  $('nextM').onclick = function () { view = new Date(view.getFullYear(), view.getMonth() + 1, 1); render(); loadMonth(view).then(render); };
+
+  // ---------- envio ----------
+  $('form').onsubmit = function (ev) {
+    ev.preventDefault();
+    msg('formMsg', '');
+    var data = {
+      action: 'request',
+      name: $('name').value.trim(), email: $('email').value.trim(), phone: $('phone').value.trim(),
+      team: $('team').value.trim(), notes: $('notes').value.trim(),
+      slots: Object.keys(selected).sort().map(function (k) { return { date: k, start: hhmm(selected[k].start), end: hhmm(selected[k].end) }; })
+    };
+    if (!data.slots.length) return msg('formMsg', 'Escolha pelo menos um dia (passo 1).');
+    if (!data.name || !data.email || !data.phone || !data.team) return msg('formMsg', 'Preencha nome, e-mail, contacto telefónico e equipa.');
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(data.email)) return msg('formMsg', 'O e-mail não parece válido.');
+    var btn = $('submitBtn'); btn.disabled = true; btn.textContent = 'A enviar…';
+    apiPost(data).then(function (res) {
+      if (!res.ok) {
+        msg('formMsg', res.error);
+        return refreshMonths().then(function () { revalidateSelection(); render(); });
+      }
+      $('bookingFlow').classList.add('hidden');
+      $('doneEmail').textContent = data.email;
+      $('doneBox').classList.remove('hidden');
+      window.scrollTo(0, 0);
+    }).catch(function () {
+      msg('formMsg', 'Não foi possível enviar o pedido. Verifique a ligação e tente novamente.');
+    }).then(function () { btn.disabled = false; btn.textContent = 'Enviar pedido de reserva'; });
+  };
+
+  // ---------- cancelamento por link ----------
+  function setupCancel(id, t) {
+    $('bookingFlow').classList.add('hidden');
+    $('cancelBox').classList.remove('hidden');
+    $('cancelBtn').onclick = function () {
+      var b = $('cancelBtn'); b.disabled = true; b.textContent = 'A cancelar…';
+      apiPost({ action: 'cancel', requestId: id, token: t }).then(function (res) {
+        if (!res.ok) { msg('cancelMsg', res.error); b.disabled = false; b.textContent = 'Confirmar cancelamento'; return; }
+        b.classList.add('hidden');
+        msg('cancelMsg', 'Cancelado. Enviámos uma confirmação para o seu e-mail.', 'info');
+      }).catch(function () { msg('cancelMsg', 'Não foi possível cancelar. Tente novamente.'); b.disabled = false; b.textContent = 'Confirmar cancelamento'; });
+    };
+  }
+
+  // ---------- arranque ----------
+  function init() {
+    var q = new URLSearchParams(location.search);
+    if (q.get('cancelar') && q.get('t')) setupCancel(q.get('cancelar'), q.get('t'));
+    var t = today(); view = new Date(t.getFullYear(), t.getMonth(), 1);
+    apiGet({ action: 'config' }).then(function (res) {
+      if (!res.ok) throw new Error(res.error);
+      cfg = res.config;
+      $('rules').innerHTML = '';
+      ['Das ' + cfg.openHour + 'h às ' + cfg.closeHour + 'h', 'Máx. ' + cfg.maxHoursPerDay + 'h por dia', 'Até ' + cfg.maxDaysPerRequest + ' dias por pedido', 'Sujeito a aprovação']
+        .forEach(function (r) { var li = document.createElement('li'); li.textContent = r; $('rules').appendChild(li); });
+      render();
+      return loadMonth(view).then(render);
+    }).catch(function (e) {
+      msg('calMsg', 'A plataforma está temporariamente indisponível. ' + (e.message || ''));
+    });
+  }
+  init();
+})();
+</script>
+</body>
+</html>

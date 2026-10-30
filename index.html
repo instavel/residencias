@@ -14,10 +14,9 @@
 <div class="wrap">
   <header class="top">
     <div class="topbar">
-      <div class="org">Instável – Centro Coreográfico</div>
+      <div class="org"><span class="bars" aria-hidden="true"><i></i><i></i></span><span class="txt">Instável – Centro Coreográfico</span></div>
       <div class="lang" role="group" aria-label="Idioma / Language">
-        <button type="button" data-lang="pt">PT</button>
-        <button type="button" data-lang="en">EN</button>
+        <button type="button" data-lang="pt">PT</button><span class="dot" aria-hidden="true">·</span><button type="button" data-lang="en">EN</button>
       </div>
     </div>
     <h1>Residências da Instável</h1>
@@ -42,9 +41,9 @@
       <h2><span class="n">1.</span><span data-t="s1"></span></h2>
       <p class="hint" id="calHint"></p>
       <div class="cal-head">
-        <button class="iconbtn" id="prevW" type="button">‹</button>
-        <div class="month" id="weekLabel"></div>
-        <button class="iconbtn" id="nextW" type="button">›</button>
+        <button class="iconbtn" id="prevM" type="button">‹</button>
+        <div class="month" id="monthLabel"></div>
+        <button class="iconbtn" id="nextM" type="button">›</button>
       </div>
       <div class="grid" id="grid"></div>
       <div class="legend">
@@ -106,7 +105,7 @@
       rules: function (c) { return ['Das ' + c.openHour + 'h às ' + c.closeHour + 'h', 'Máx. ' + c.maxHoursPerDay + 'h por dia', 'Até ' + c.maxDaysPerRequest + ' dias por pedido', 'Sujeito a aprovação']; },
       s1: 'Dias',
       hint1: function (n) { return 'Clica nos dias que pretendes reservar um estúdio (até ' + n + ' dias por pedido). Para retirar os dias, clica de novo.'; },
-      prevW: 'Semana anterior', nextW: 'Semana seguinte',
+      prevM: 'Mês anterior', nextM: 'Mês seguinte',
       lgFree: 'Livre', lgPartial: 'Parcialmente disponível', lgFull: 'Sem disponibilidade', lgSel: 'Escolhido',
       counter: 'Dias escolhidos',
       s2: 'Horários',
@@ -118,7 +117,7 @@
       s3: 'Dados pessoais',
       fName: 'Nome', fEmail: 'E-mail', fPhone: 'Contacto telefónico',
       fTeam: 'Equipa que estará presente', fTeamPh: 'Nomes das pessoas que vão estar no estúdio',
-      fTeamNote: 'Atenção: por razões de controlo de segurança, só as pessoas indicadas aqui poderão entrar no estúdio.',
+      fTeamNote: 'Nota: Por razões de controlo de segurança, só as pessoas indicadas aqui poderão entrar na Instável. Caso queiras adicionar mais pessoas depois de fazeres a reserva, enviar e-mail para palcosinstaveis@gmail.com, por favor.',
       fNotes: 'Observações',
       submit: 'Enviar pedido de reserva', sending: 'A enviar…',
       doneTitle: 'Pedido enviado',
@@ -140,7 +139,8 @@
       eDropped: function (l) { return 'Entretanto deixou de haver disponibilidade, retirado: ' + l + '.'; },
       wd: ['dom', 'seg', 'ter', 'qua', 'qui', 'sex', 'sáb'],
       wdl: ['domingo', 'segunda', 'terça', 'quarta', 'quinta', 'sexta', 'sábado'],
-      mo: ['jan', 'fev', 'mar', 'abr', 'mai', 'jun', 'jul', 'ago', 'set', 'out', 'nov', 'dez']
+      mo: ['jan', 'fev', 'mar', 'abr', 'mai', 'jun', 'jul', 'ago', 'set', 'out', 'nov', 'dez'],
+      mof: ['janeiro', 'fevereiro', 'março', 'abril', 'maio', 'junho', 'julho', 'agosto', 'setembro', 'outubro', 'novembro', 'dezembro']
     },
     en: {
       sub: 'Studio booking',
@@ -148,7 +148,7 @@
       rules: function (c) { return [c.openHour + ':00 to ' + c.closeHour + ':00', 'Max. ' + c.maxHoursPerDay + 'h per day', 'Up to ' + c.maxDaysPerRequest + ' days per request', 'Subject to approval']; },
       s1: 'Days',
       hint1: function (n) { return 'Click the days on which you would like to book a studio (up to ' + n + ' days per request). To remove a day, click it again.'; },
-      prevW: 'Previous week', nextW: 'Next week',
+      prevM: 'Previous month', nextM: 'Next month',
       lgFree: 'Available', lgPartial: 'Partially available', lgFull: 'Unavailable', lgSel: 'Selected',
       counter: 'Selected days',
       s2: 'Times',
@@ -160,7 +160,7 @@
       s3: 'Personal details',
       fName: 'Name', fEmail: 'E-mail', fPhone: 'Phone number',
       fTeam: 'Team members who will be present', fTeamPh: 'Names of the people who will be in the studio',
-      fTeamNote: 'Please note: for security reasons, only the people listed here will be allowed into the studio.',
+      fTeamNote: 'Note: For security reasons, only the people listed here will be allowed into Instável. If you would like to add more people after making your booking, please send an e-mail to palcosinstaveis@gmail.com.',
       fNotes: 'Notes',
       submit: 'Send booking request', sending: 'Sending…',
       doneTitle: 'Request sent',
@@ -182,15 +182,16 @@
       eDropped: function (l) { return 'No longer available, removed: ' + l + '.'; },
       wd: ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'],
       wdl: ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'],
-      mo: ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
+      mo: ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'],
+      mof: ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December']
     }
   };
 
   var lang = 'pt';
   var cfg = null;            // configuração vinda do servidor
-  var week = null;           // segunda-feira da semana visível
+  var view = null;           // primeiro dia do mês visível
   var avail = {};            // 'AAAA-MM-DD' -> [[ini,fim], ...] (um intervalo por evento no calendário)
-  var loaded = {};           // segunda-feira -> promessa
+  var loaded = {};           // 'AAAA-MM' -> promessa
   var selected = {};         // 'AAAA-MM-DD' -> { start: min, end: min }
   var cancelMode = false;
 
@@ -200,7 +201,6 @@
   function key(d) { return d.getFullYear() + '-' + pad(d.getMonth() + 1) + '-' + pad(d.getDate()); }
   function fromKey(k) { var p = k.split('-'); return new Date(+p[0], +p[1] - 1, +p[2]); }
   function addDays(d, n) { return new Date(d.getFullYear(), d.getMonth(), d.getDate() + n); }
-  function monday(d) { return addDays(d, -((d.getDay() + 6) % 7)); }
   function hhmm(m) { return pad(Math.floor(m / 60)) + ':' + pad(m % 60); }
   function today() { var n = new Date(); return new Date(n.getFullYear(), n.getMonth(), n.getDate()); }
   function human(k) { var d = fromKey(k); return t('wdl')[d.getDay()] + ', ' + d.getDate() + ' ' + t('mo')[d.getMonth()]; }
@@ -218,20 +218,17 @@
   }
 
   // ---------- idioma ----------
+  // Entra sempre em português; inglês só pelo botão EN ou por links com ?lang=en (ex.: e-mails)
   function pickLang() {
-    var q = new URLSearchParams(location.search).get('lang');
-    if (q === 'en' || q === 'pt') return q;
-    try { var s = localStorage.getItem('residenciasLang'); if (s === 'en' || s === 'pt') return s; } catch (e) {}
-    return /^pt/i.test(navigator.language || 'pt') ? 'pt' : 'en';
+    return new URLSearchParams(location.search).get('lang') === 'en' ? 'en' : 'pt';
   }
   function setLang(l) {
     lang = l;
-    try { localStorage.setItem('residenciasLang', l); } catch (e) {}
     document.documentElement.lang = l;
     document.querySelectorAll('[data-t]').forEach(function (el) { var v = t(el.getAttribute('data-t')); if (typeof v === 'string') el.textContent = v; });
     document.querySelectorAll('[data-tp]').forEach(function (el) { el.placeholder = t(el.getAttribute('data-tp')); });
     document.querySelectorAll('.lang button').forEach(function (b) { b.setAttribute('aria-pressed', String(b.getAttribute('data-lang') === l)); });
-    $('prevW').setAttribute('aria-label', t('prevW')); $('nextW').setAttribute('aria-label', t('nextW'));
+    $('prevM').setAttribute('aria-label', t('prevM')); $('nextM').setAttribute('aria-label', t('nextM'));
     var suffix = l === 'en' ? '?lang=en' : '?lang=pt';
     $('againLink').href = './' + suffix; $('backLink').href = './' + suffix;
     if (cfg) { renderRules(); render(); }
@@ -279,10 +276,11 @@
     return free === total ? 'free' : 'partial';
   }
 
-  function loadWeek(mon) {
-    var wk = key(mon);
+  function loadMonth(d) {
+    var first = new Date(d.getFullYear(), d.getMonth(), 1), last = new Date(d.getFullYear(), d.getMonth() + 1, 0);
+    var wk = key(first).slice(0, 7);
     if (loaded[wk]) return loaded[wk];
-    var p = apiGet({ action: 'availability', from: wk, to: key(addDays(mon, 6)) }).then(function (res) {
+    var p = apiGet({ action: 'availability', from: key(first), to: key(last) }).then(function (res) {
       if (!res.ok) throw new Error(res.error);
       Object.keys(res.days).forEach(function (k) { avail[k] = res.days[k]; });
     }).catch(function () {
@@ -294,9 +292,9 @@
   }
   function refreshAll() {
     avail = {}; loaded = {};
-    var weeks = {}; weeks[key(week)] = week;
-    Object.keys(selected).forEach(function (k) { var m = monday(fromKey(k)); weeks[key(m)] = m; });
-    return Promise.all(Object.keys(weeks).map(function (w) { return loadWeek(weeks[w]); }));
+    var months = {}; months[key(view).slice(0, 7)] = view;
+    Object.keys(selected).forEach(function (k) { months[k.slice(0, 7)] = fromKey(k); });
+    return Promise.all(Object.keys(months).map(function (m) { return loadMonth(months[m]); }));
   }
 
   // ---------- desenho ----------
@@ -305,25 +303,23 @@
     t('rules')(cfg).forEach(function (r) { var li = document.createElement('li'); li.textContent = r; $('rules').appendChild(li); });
   }
 
-  function weekLabel() {
-    var a = week, b = addDays(week, 6), mo = t('mo');
-    if (a.getMonth() === b.getMonth()) return a.getDate() + '–' + b.getDate() + ' ' + mo[a.getMonth()] + ' ' + a.getFullYear();
-    return a.getDate() + ' ' + mo[a.getMonth()] + (a.getFullYear() !== b.getFullYear() ? ' ' + a.getFullYear() : '') +
-      ' – ' + b.getDate() + ' ' + mo[b.getMonth()] + ' ' + b.getFullYear();
-  }
-
   function renderCalendar() {
-    $('weekLabel').textContent = weekLabel();
-    $('prevW').disabled = week <= monday(today());
-    $('nextW').disabled = addDays(week, 7) > limitDate();
+    $('monthLabel').textContent = t('mof')[view.getMonth()] + ' ' + view.getFullYear();
+    var td = today(), lim = limitDate();
+    $('prevM').disabled = view.getFullYear() === td.getFullYear() && view.getMonth() === td.getMonth();
+    $('nextM').disabled = view.getFullYear() * 12 + view.getMonth() >= lim.getFullYear() * 12 + lim.getMonth();
     var g = $('grid'); g.innerHTML = '';
-    for (var i = 0; i < 7; i++) {
-      var d = addDays(week, i), k = key(d);
+    [1, 2, 3, 4, 5, 6, 0].forEach(function (i) { var h = document.createElement('div'); h.className = 'dow'; h.textContent = t('wd')[i]; g.appendChild(h); });
+    var first = new Date(view.getFullYear(), view.getMonth(), 1);
+    for (var i = 0; i < (first.getDay() + 6) % 7; i++) g.appendChild(document.createElement('div'));
+    var n = new Date(view.getFullYear(), view.getMonth() + 1, 0).getDate();
+    for (var dd = 1; dd <= n; dd++) {
+      var k = key(new Date(view.getFullYear(), view.getMonth(), dd));
       var st = dayStatus(k);
       var b = document.createElement('button');
       b.type = 'button';
       b.className = 'day ' + (selected[k] ? 'sel' : st);
-      b.innerHTML = '<span class="wd">' + t('wd')[d.getDay()] + '</span><span class="dn">' + d.getDate() + '</span><span class="mo">' + t('mo')[d.getMonth()] + '</span>';
+      b.innerHTML = '<span class="dn">' + dd + '</span>';
       b.disabled = !selected[k] && st !== 'free' && st !== 'partial';
       var lbl = human(k);
       if (selected[k]) lbl += ' – ' + t('lgSel'); else if (st === 'partial') lbl += ' – ' + t('lgPartial'); else if (st === 'full') lbl += ' – ' + t('lgFull');
@@ -419,9 +415,9 @@
     msg('calMsg', bad.length ? t('eCopy')(bad.join('; ')) : '', 'info');
   };
 
-  function goWeek(n) { week = addDays(week, 7 * n); render(); loadWeek(week).then(render); }
-  $('prevW').onclick = function () { goWeek(-1); };
-  $('nextW').onclick = function () { goWeek(1); };
+  function goMonth(n) { view = new Date(view.getFullYear(), view.getMonth() + n, 1); render(); loadMonth(view).then(render); }
+  $('prevM').onclick = function () { goMonth(-1); };
+  $('nextM').onclick = function () { goMonth(1); };
 
   // ---------- envio ----------
   $('form').onsubmit = function (ev) {
@@ -471,14 +467,14 @@
     setLang(pickLang());
     var q = new URLSearchParams(location.search);
     if (q.get('cancelar') && q.get('t')) setupCancel(q.get('cancelar'), q.get('t'));
-    week = monday(today());
+    view = new Date(today().getFullYear(), today().getMonth(), 1);
     if (cancelMode) return;
     $('calHint').textContent = '…';
     apiGet({ action: 'config' }).then(function (res) {
       if (!res.ok) throw new Error(res.error);
       cfg = res.config;
       renderRules(); render();
-      return loadWeek(week).then(render);
+      return loadMonth(view).then(render);
     }).catch(function () { msg('calMsg', t('eDown')); });
   }
   init();

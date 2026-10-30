@@ -4,15 +4,19 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="robots" content="noindex">
-<title>Residências Lugar Instável · Equipa</title>
+<title>Residências da Instável · Equipa</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Archivo:wdth,wght@100..125,400..800&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="style.css">
 <script src="config.js"></script>
 </head>
 <body>
 <div class="wrap">
   <header class="top">
-    <div class="org">Residências Lugar Instável · Equipa</div>
-    <h1>Aprovação de reservas</h1>
+    <div class="org">Instável – Centro Coreográfico · Equipa</div>
+    <h1>Residências da Instável</h1>
+    <p class="sub">Aprovação de reservas</p>
     <p>Pedidos feitos na plataforma. Ao aprovar ou recusar, a pessoa recebe um e-mail automaticamente e o calendário é atualizado.</p>
   </header>
 
@@ -77,6 +81,7 @@
     var c = el('div', 'req-card');
     var h = el('h3', null, r.name);
     var tg = el('span', 'tag' + (r.status === 'aprovado' ? ' okt' : ''), r.status === 'aprovado' ? 'aprovado' : 'pendente'); h.appendChild(tg);
+    if (r.lang === 'en') h.appendChild(el('span', 'tag', 'EN'));
     c.appendChild(h);
     var meta = el('div', 'meta');
     meta.appendChild(document.createTextNode(r.email + ' · ' + r.phone + ' · ' + r.slots.length + (r.slots.length === 1 ? ' dia' : ' dias')));

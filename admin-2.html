@@ -1,0 +1,201 @@
+<!doctype html>
+<html lang="pt">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex">
+<title>Residências da Instável · Equipa</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Archivo:wdth,wght@100..125,400..800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="style.css">
+<script src="config.js"></script>
+</head>
+<body>
+<div class="wrap">
+  <header class="top">
+    <div class="topbar"><div class="org"><span class="txt">Instável – Centro Coreográfico · Equipa</span></div></div>
+    <h1>Residências da Instável</h1>
+    <p class="sub">Aprovação de reservas</p>
+    <p>Pedidos feitos na plataforma. Ao aprovar ou recusar, a pessoa recebe um e-mail automaticamente e o calendário é atualizado.</p>
+  </header>
+
+  <section class="step" id="loginBox">
+    <h2>Entrar</h2>
+    <form id="loginForm">
+      <label for="pw">Senha da equipa</label>
+      <input id="pw" type="password" autocomplete="current-password">
+      <div class="actions"><button class="btn" type="submit">Entrar</button></div>
+      <div id="loginMsg"></div>
+    </form>
+  </section>
+
+  <div id="panel" class="hidden">
+    <div class="tabs" role="tablist">
+      <button role="tab" id="tabPending" aria-selected="true">Pendentes <span id="nPending"></span></button>
+      <button role="tab" id="tabApproved" aria-selected="false">Aprovadas <span id="nApproved"></span></button>
+      <button class="linkbtn" id="reload" style="margin-left:auto">Atualizar</button>
+    </div>
+    <div id="panelMsg"></div>
+    <div id="list"></div>
+  </div>
+</div>
+
+<script>
+(function () {
+  'use strict';
+  var API = window.RESERVAS_API;
+  var pw = '';
+  var data = { pending: [], approved: [] };
+  var tab = 'pending';
+  var $ = function (id) { return document.getElementById(id); };
+
+  function msg(el, text, kind) { $(el).innerHTML = text ? '<div class="msg ' + (kind || 'err') + '"></div>' : ''; if (text) $(el).firstChild.textContent = text; }
+  function api(body) {
+    body.password = pw;
+    return fetch(API, { method: 'POST', headers: { 'Content-Type': 'text/plain;charset=utf-8' }, body: JSON.stringify(body) })
+      .then(function (r) { return r.json(); });
+  }
+  function el(tag, cls, text) { var e = document.createElement(tag); if (cls) e.className = cls; if (text != null) e.textContent = text; return e; }
+
+  function load() {
+    msg('panelMsg', 'A carregar…', 'info');
+    return api({ action: 'adminList' }).then(function (res) {
+      if (!res.ok) throw new Error(res.error);
+      data = res; msg('panelMsg', ''); render(); return true;
+    });
+  }
+
+  function render() {
+    $('nPending').textContent = '(' + data.pending.length + ')';
+    $('nApproved').textContent = '(' + data.approved.length + ')';
+    $('tabPending').setAttribute('aria-selected', String(tab === 'pending'));
+    $('tabApproved').setAttribute('aria-selected', String(tab === 'approved'));
+    var items = data[tab], list = $('list');
+    list.innerHTML = '';
+    if (!items.length) { list.appendChild(el('p', 'empty', tab === 'pending' ? 'Não há pedidos pendentes.' : 'Não há reservas aprovadas futuras.')); return; }
+    items.forEach(function (r) { list.appendChild(card(r)); });
+  }
+
+  function card(r) {
+    var c = el('div', 'req-card');
+    var h = el('h3', null, r.name);
+    var tg = el('span', 'tag' + (r.status === 'aprovado' ? ' okt' : ''), r.status === 'aprovado' ? 'aprovado' : 'pendente'); h.appendChild(tg);
+    if (r.lang === 'en') h.appendChild(el('span', 'tag', 'EN'));
+    c.appendChild(h);
+    var meta = el('div', 'meta');
+    meta.appendChild(document.createTextNode(r.email + ' · ' + r.phone + ' · ' + r.slots.length + (r.slots.length === 1 ? ' dia' : ' dias')));
+    if (r.created) meta.appendChild(document.createTextNode(' · pedido a ' + new Date(r.created).toLocaleString('pt-PT', { dateStyle: 'short', timeStyle: 'short' })));
+    c.appendChild(meta);
+    var team = el('div', 'team'); team.appendChild(el('b', null, 'Equipa: ')); team.appendChild(document.createTextNode(r.team)); c.appendChild(team);
+    if (r.notes) { var n = el('div', 'team'); n.appendChild(el('b', null, 'Observações: ')); n.appendChild(document.createTextNode(r.notes)); c.appendChild(n); }
+    var pending = r.status === 'pendente', multi = r.slots.length > 1;
+    // Lista de dias; com mais de um dia, cada um tem uma caixa de seleção
+    var ul = el('ul', multi ? 'days' : null), boxes = [];
+    r.slots.forEach(function (s) {
+      var li = el('li');
+      var text = s.label + ', ' + s.start + '–' + s.end;
+      if (multi) {
+        var lab = el('label', 'daypick'), cb = document.createElement('input');
+        cb.type = 'checkbox'; cb.checked = pending; cb.value = s.date; cb.full = s.full;
+        lab.appendChild(cb); lab.appendChild(document.createTextNode(' ' + text));
+        li.appendChild(lab); boxes.push(cb);
+      } else li.appendChild(document.createTextNode(text));
+      if (s.full) li.appendChild(el('span', 'warn', '  ⚠ sem estúdio livre — já ocupado por: ' + s.overlaps.join('; ')));
+      else if (s.overlaps.length) li.appendChild(el('span', 'meta', '  (partilha horário com: ' + s.overlaps.join('; ') + ')'));
+      ul.appendChild(li);
+    });
+    c.appendChild(ul);
+    function picked() { return boxes.filter(function (b) { return b.checked; }); }
+
+    var act = el('div', 'actions'), m = el('div');
+    if (multi) {
+      var hint = el('p', 'meta', pending
+        ? 'Para aprovar só alguns dias, desmarca os outros e usa "Aprovar só…": os dias desmarcados são recusados e a pessoa é informada no mesmo e-mail.'
+        : 'Para cancelar só alguns dias, marca-os e usa "Cancelar dias selecionados".');
+      c.insertBefore(hint, ul);
+    }
+    if (pending) {
+      // "Aprovar todos" aprova sempre todos os dias; "Aprovar X de Y" só aparece quando há dias desmarcados
+      var all = el('button', 'btn ok small', multi ? 'Aprovar todos' : 'Aprovar');
+      var some = el('button', 'btn ok small hidden');
+      var no = el('button', 'btn ghost small', multi ? 'Recusar todos' : 'Recusar');
+      var btnsP = [all, some, no];
+      var sync = function () {
+        var n = picked().length, partial = multi && n > 0 && n < boxes.length;
+        some.classList.toggle('hidden', !partial);
+        some.textContent = 'Aprovar só ' + n + ' de ' + boxes.length + ' dias';
+      };
+      boxes.forEach(function (b) { b.onchange = sync; }); sync();
+      all.onclick = function () {
+        if (r.slots.some(function (s) { return s.full; }) && !confirm('Em pelo menos um destes dias os dois estúdios já estão ocupados. Aprovar mesmo assim?')) return;
+        send_({ action: 'approve', requestId: r.requestId }, btnsP, m);
+      };
+      some.onclick = function () {
+        var sel = picked();
+        if (sel.some(function (b) { return b.full; }) && !confirm('Em pelo menos um dos dias a aprovar os dois estúdios já estão ocupados. Aprovar mesmo assim?')) return;
+        var reason = prompt('Vais aprovar ' + sel.length + ' dia(s) e recusar ' + (boxes.length - sel.length) + '.\nMotivo para os dias recusados (opcional, vai no e-mail):', '');
+        if (reason === null) return;
+        send_({ action: 'approve', requestId: r.requestId, dates: sel.map(function (b) { return b.value; }), reason: reason }, btnsP, m);
+      };
+      no.onclick = function () {
+        var reason = prompt('Recusar ' + (multi ? 'todos os dias deste pedido' : 'este pedido') + '?\nMotivo (opcional, vai no e-mail para a pessoa):', '');
+        if (reason === null) return;
+        send_({ action: 'reject', requestId: r.requestId, reason: reason }, btnsP, m);
+      };
+      act.appendChild(all); act.appendChild(some); act.appendChild(no);
+    } else {
+      var btns = [];
+      if (multi) {
+        var some = el('button', 'btn ghost small', 'Cancelar dias selecionados');
+        var syncC = function () { var n = picked().length; some.disabled = n === 0; some.textContent = n ? 'Cancelar ' + n + (n === 1 ? ' dia selecionado' : ' dias selecionados') : 'Cancelar dias selecionados'; };
+        boxes.forEach(function (b) { b.onchange = syncC; }); syncC();
+        some.onclick = function () {
+          var sel = picked(); if (!sel.length) return;
+          var reason = prompt('Cancelar ' + sel.length + ' dia(s) desta reserva? A pessoa recebe um e-mail com os dias cancelados e os que se mantêm.\nMotivo (opcional):', '');
+          if (reason === null) return;
+          send_({ action: 'reject', requestId: r.requestId, reason: reason, dates: sel.map(function (b) { return b.value; }) }, btns, m);
+        };
+        act.appendChild(some); btns.push(some);
+      }
+      var cancel = el('button', 'btn ghost small', multi ? 'Cancelar reserva toda' : 'Cancelar reserva');
+      cancel.onclick = function () {
+        var reason = prompt('Cancelar ' + (multi ? 'todos os dias desta reserva' : 'esta reserva') + '? A pessoa recebe um e-mail.\nMotivo (opcional):', '');
+        if (reason === null) return;
+        send_({ action: 'reject', requestId: r.requestId, reason: reason }, btns, m);
+      };
+      act.appendChild(cancel); btns.push(cancel);
+    }
+    c.appendChild(act); c.appendChild(m);
+    return c;
+  }
+
+  function send_(body, btns, m) {
+    btns.forEach(function (b) { b.disabled = true; });
+    api(body).then(function (res) {
+      if (!res.ok) throw new Error(res.error);
+      return load();
+    }).catch(function (e) {
+      btns.forEach(function (b) { b.disabled = false; });
+      m.innerHTML = ''; m.appendChild(el('div', 'msg err', e.message || 'Erro.'));
+    });
+  }
+
+  $('loginForm').onsubmit = function (ev) {
+    ev.preventDefault();
+    pw = $('pw').value;
+    msg('loginMsg', '');
+    load().then(function () {
+      try { sessionStorage.setItem('reservasPw', pw); } catch (e) {}
+      $('loginBox').classList.add('hidden'); $('panel').classList.remove('hidden');
+    }).catch(function (e) { msg('panelMsg', ''); msg('loginMsg', e.message || 'Não foi possível entrar.'); });
+  };
+  $('tabPending').onclick = function () { tab = 'pending'; render(); };
+  $('tabApproved').onclick = function () { tab = 'approved'; render(); };
+  $('reload').onclick = function () { load().catch(function (e) { msg('panelMsg', e.message); }); };
+
+  try { var saved = sessionStorage.getItem('reservasPw'); if (saved) { $('pw').value = saved; $('loginForm').requestSubmit(); } } catch (e) {}
+})();
+</script>
+</body>
+</html>

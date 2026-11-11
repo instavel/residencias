@@ -109,6 +109,10 @@ label { display: block; font-size: 15px; font-weight: 700; margin-bottom: 6px; }
 .req-card .team { font-size: 14px; white-space: pre-wrap; margin: 6px 0; }
 .req-card ul { margin: 6px 0 0; padding-left: 18px; font-size: 14px; }
 .warn { color: var(--danger); font-weight: 700; }
+.req-card ul.days { list-style: none; padding-left: 0; }
+.req-card ul.days li { padding: 5px 0; border-top: 1px solid var(--soft); }
+.daypick { display: inline; font-weight: 400; font-size: 14px; margin: 0; cursor: pointer; }
+.daypick input { width: auto; margin: 0 6px 0 0; accent-color: var(--title); vertical-align: -1px; }
 .tag { display: inline-block; font-size: 11px; font-weight: 700; letter-spacing: .12em; text-transform: uppercase; padding: 2px 8px; border: 1.5px solid var(--title); color: var(--title); margin-left: 8px; vertical-align: 3px; }
 .tag.okt { background: var(--accent); border-color: var(--accent); color: #000; }
 .tabs { display: flex; gap: 8px; margin-bottom: 14px; align-items: center; }
